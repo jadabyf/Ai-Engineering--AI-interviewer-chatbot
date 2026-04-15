@@ -20,7 +20,7 @@
 - [x] Write product-spec.md
 - [x] Write technical-spec.md
 - [x] Write implementation-plan.md
-- [ ] Initialize Next.js 14 project (TypeScript + Tailwind CSS)
+- [ ] Initialize Next.js project (TypeScript + Tailwind CSS)
 - [ ] Create folder structure: app/, components/, tools/, lib/, types/, data/, docs/
 - [ ] Define all TypeScript types in types/index.ts
 
@@ -69,7 +69,7 @@
 
 | Dependency | Why |
 |---|---|
-| next 14 | App router, React Server Components support |
+| next | App router, React Server Components support |
 | react 18 | UI library |
 | typescript | Type safety across tool/service/component layers |
 | tailwindcss | Utility-first styling |
