@@ -1,0 +1,86 @@
+// Genre metadata — used by GenreSelector and other UI components
+
+import { GenreInfo } from "@/types";
+
+export const genres: GenreInfo[] = [
+  {
+    id: "behavioral",
+    label: "Behavioral",
+    description: "Tell your stories. STAR method practice.",
+    icon: "🗣️",
+    tone: "Warm & reflective",
+    color: "bg-violet-100 border-violet-300 hover:bg-violet-200",
+  },
+  {
+    id: "technical",
+    label: "Technical",
+    description: "Logic, data structures, and system design.",
+    icon: "💻",
+    tone: "Precise & analytical",
+    color: "bg-blue-100 border-blue-300 hover:bg-blue-200",
+  },
+  {
+    id: "hr",
+    label: "General HR",
+    description: "Culture fit, strengths, career goals.",
+    icon: "🤝",
+    tone: "Professional & conversational",
+    color: "bg-sky-100 border-sky-300 hover:bg-sky-200",
+  },
+  {
+    id: "product",
+    label: "Product Thinking",
+    description: "Tradeoffs, metrics, user empathy.",
+    icon: "📦",
+    tone: "Strategic & curious",
+    color: "bg-amber-100 border-amber-300 hover:bg-amber-200",
+  },
+  {
+    id: "leadership",
+    label: "Leadership",
+    description: "Ownership, decisions, vision.",
+    icon: "🏆",
+    tone: "Direct & accountable",
+    color: "bg-orange-100 border-orange-300 hover:bg-orange-200",
+  },
+  {
+    id: "customer-support",
+    label: "Customer Support",
+    description: "Empathy, calm, resolution mindset.",
+    icon: "💬",
+    tone: "Empathetic & calm",
+    color: "bg-teal-100 border-teal-300 hover:bg-teal-200",
+  },
+  {
+    id: "sales",
+    label: "Sales & Communication",
+    description: "Persuasion, rapport, objection handling.",
+    icon: "📈",
+    tone: "Confident & persuasive",
+    color: "bg-green-100 border-green-300 hover:bg-green-200",
+  },
+  {
+    id: "internship",
+    label: "Internship / Entry-Level",
+    description: "Learning mindset, curiosity, potential.",
+    icon: "🎓",
+    tone: "Encouraging & curious",
+    color: "bg-pink-100 border-pink-300 hover:bg-pink-200",
+  },
+  {
+    id: "stress",
+    label: "Stress & Pressure",
+    description: "Prioritization and calm under fire.",
+    icon: "🔥",
+    tone: "Challenging & probing",
+    color: "bg-red-100 border-red-300 hover:bg-red-200",
+  },
+  {
+    id: "teamwork",
+    label: "Teamwork & Collaboration",
+    description: "Communication, conflict, shared goals.",
+    icon: "👥",
+    tone: "Inclusive & balanced",
+    color: "bg-indigo-100 border-indigo-300 hover:bg-indigo-200",
+  },
+];
