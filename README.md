@@ -22,7 +22,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Project Structure
 
-```
+```text
 ├── app/                    # Next.js App Router pages + layout
 ├── components/             # React UI components
 │   ├── ChatWindow.tsx      # Main session component (owns all state)
@@ -56,7 +56,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Interview Genres
 
 | Genre | Focus |
-|---|---|
+| --- | --- |
 | 🗣️ Behavioral | STAR-method storytelling |
 | 💻 Technical | Logic, data structures, system design |
 | 🤝 General HR | Culture fit, professionalism |
@@ -87,6 +87,14 @@ npm run dev      # Start development server
 npm run build    # Production build
 npm run lint     # ESLint
 ```
+
+---
+
+## Deployment
+
+Self-hosted production deployment is documented here:
+
+- [`docs/deployment-self-hosted.md`](docs/deployment-self-hosted.md)
 
 ---
 
