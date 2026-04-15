@@ -1,0 +1,253 @@
+.pageWrap {
+  width: min(920px, 100%);
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.hero {
+  padding: 1.5rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #12343b, #215d67 60%, #2b7f8d);
+  color: #f6fbfc;
+  box-shadow: 0 10px 30px rgba(18, 52, 59, 0.25);
+}
+
+.hero h1 {
+  margin-top: 0.35rem;
+  font-family: var(--font-heading);
+  font-size: clamp(1.9rem, 4vw, 2.6rem);
+  line-height: 1.15;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.16);
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+}
+
+.subtitle {
+  margin-top: 0.65rem;
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #d6e2e5;
+  border-radius: 14px;
+  padding: 1rem;
+  box-shadow: 0 6px 18px rgba(18, 52, 59, 0.08);
+}
+
+.cardTitle {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #12343b;
+}
+
+.controls {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.controls label,
+.answerForm label {
+  font-weight: 600;
+  color: #244b54;
+}
+
+.controls select,
+.answerForm textarea {
+  width: 100%;
+  font-size: 1rem;
+  border: 1px solid #bfd1d5;
+  border-radius: 10px;
+  padding: 0.7rem 0.75rem;
+  background: #fbfdfe;
+  color: #1a2f33;
+}
+
+.answerForm {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+
+.answerForm textarea {
+  resize: vertical;
+}
+
+.primaryButton,
+.secondaryButton {
+  border: none;
+  border-radius: 10px;
+  font-size: 0.98rem;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.primaryButton {
+  background: #12343b;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  background: #e7eff1;
+  color: #12343b;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.sampleBlock {
+  margin-top: 1rem;
+  border-top: 1px dashed #d4e0e4;
+  padding-top: 0.75rem;
+}
+
+.sampleTitle {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  color: #2b4f57;
+}
+
+.sampleBlock ul,
+.listBlock ul {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.questionText {
+  padding: 0.8rem;
+  border-left: 4px solid #2b7f8d;
+  background: #f4f9fa;
+  border-radius: 8px;
+  line-height: 1.55;
+}
+
+.scoreRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f4f9fa;
+  border: 1px solid #d7e5e8;
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+}
+
+.scoreLabel {
+  font-weight: 700;
+  color: #284f57;
+}
+
+.scoreValue {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #12343b;
+}
+
+.feedbackText {
+  margin-top: 0.8rem;
+  line-height: 1.55;
+}
+
+.listBlock {
+  margin-top: 0.9rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.listBlock h3 {
+  font-size: 1rem;
+  color: #12343b;
+}
+
+.emptyText {
+  color: #586f75;
+}
+
+.improvedAnswer {
+  white-space: pre-line;
+  background: #f8fbfc;
+  border: 1px solid #d5e4e8;
+  border-radius: 8px;
+  padding: 0.75rem;
+  line-height: 1.55;
+}
+
+.errorText {
+  margin-top: 0.6rem;
+  color: #8f1d2c;
+  font-weight: 600;
+}
+
+.starTip {
+  border: 1px solid #d9e4d6;
+  background: #f5faf4;
+  border-radius: 12px;
+  padding: 0.9rem;
+}
+
+.starTip h3 {
+  margin-bottom: 0.45rem;
+  color: #315d2f;
+}
+
+.starTip p {
+  line-height: 1.5;
+}
+
+.actionsRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.summaryLabel {
+  color: #517179;
+  font-size: 0.88rem;
+}
+
+.summaryValue {
+  margin-top: 0.2rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #12343b;
+}
+
+@media (max-width: 760px) {
+  .pageWrap {
+    padding: 1rem 0.85rem 2rem;
+  }
+
+  .summaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionsRow {
+    justify-content: stretch;
+  }
+
+  .secondaryButton {
+    width: 100%;
+  }
+}
