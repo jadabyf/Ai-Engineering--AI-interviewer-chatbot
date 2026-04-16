@@ -1,34 +1,34 @@
 "use client";
 
 /**
- * ChatWindow
+ * ChatWindow is the full interview practice workspace.
  *
- * The main interview session component. It owns all session state and
- * orchestrates the full interview flow by calling the service layer.
+ * UX model:
+ * - Welcome mode before topic selection
+ * - Practice mode after topic selection
  *
- * Phases:
- *   select-genre → question → feedback → summary
+ * Architecture model:
+ * - UI state lives in this component
+ * - Interview operations are requested via MCP API route (/api/mcp)
  */
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import GenreSelector from "@/components/GenreSelector";
-import MessageBubble from "@/components/MessageBubble";
-import SuggestionChips from "@/components/SuggestionChips";
 import FeedbackCard from "@/components/FeedbackCard";
 import ImprovedAnswerCard from "@/components/ImprovedAnswerCard";
+import MessageBubble from "@/components/MessageBubble";
 import SessionSummary from "@/components/SessionSummary";
 import StarTipBox from "@/components/StarTipBox";
+import SuggestionChips from "@/components/SuggestionChips";
+import TopicSidebar from "@/components/TopicSidebar";
+import WelcomeState from "@/components/WelcomeState";
+import CustomQuestionBox from "@/components/CustomQuestionBox";
+import DeepFeedbackPanel from "@/components/DeepFeedbackPanel";
 
-import {
-  startInterview,
-  submitAnswer,
-  nextQuestion,
-  endSession,
-  getLandingChips,
-} from "@/lib/interviewService";
-
+import { callMcpTool } from "@/lib/mcpClient";
 import { genres } from "@/lib/genres";
+import { AnalyzeAnswerResult } from "@/types/analysis";
+import { DeepFeedbackPayload } from "@/types/coaching";
 import {
   EvaluationResult,
   HistoryEntry,
@@ -38,49 +38,51 @@ import {
   SuggestionChip,
 } from "@/types";
 
-// ─── Local Types ──────────────────────────────────────────────────────────────
-
 interface ChatMessage {
   role: "user" | "bot";
   content: string;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function ChatWindow() {
-  // ─── Session State ─────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<SessionPhase>("select-genre");
-  const [genre, setGenre] = useState<InterviewGenre | null>(null);
+  const [selectedGenre, setSelectedGenre] = useState<InterviewGenre | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [userAnswer, setUserAnswer] = useState("");
-  const [feedback, setFeedback] = useState<EvaluationResult | null>(null);
+  const [lastUserAnswer, setLastUserAnswer] = useState("");
+  const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
   const [improvedAnswer, setImprovedAnswer] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [chips, setChips] = useState<SuggestionChip[]>(getLandingChips());
+  const [chips, setChips] = useState<SuggestionChip[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "bot",
-      content:
-        "👋 Welcome to AI Interview Coach!\n\nChoose an interview type below to get started, or pick from the suggestions.",
+      content: "Welcome to AI Interview Coach. Pick a topic in the sidebar to enter practice mode.",
     },
   ]);
   const [showStarTip, setShowStarTip] = useState(false);
   const [usedQuestionIds, setUsedQuestionIds] = useState<string[]>([]);
   const [answerError, setAnswerError] = useState("");
+  const [isBusy, setIsBusy] = useState(false);
 
-  // For session summary
   const [summaryData, setSummaryData] = useState<{
     totalQuestions: number;
     averageScore: number;
   } | null>(null);
+  const [deepFeedback, setDeepFeedback] = useState<DeepFeedbackPayload | null>(null);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalyzeAnswerResult[]>([]);
+  const [showDeepFeedback, setShowDeepFeedback] = useState(false);
+  const [customQuestionInput, setCustomQuestionInput] = useState("");
 
-  // Scroll to bottom on new messages
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messageScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, feedback, phase]);
+    const container = messageScrollRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages, evaluationResult, phase, improvedAnswer]);
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  useEffect(() => {
+    void refreshSuggestionChips("welcome", null);
+  }, []);
 
   function addBotMessage(content: string) {
     setMessages((prev) => [...prev, { role: "bot", content }]);
@@ -90,150 +92,343 @@ export default function ChatWindow() {
     setMessages((prev) => [...prev, { role: "user", content }]);
   }
 
-  // ─── Genre Selection ────────────────────────────────────────────────────────
+  async function refreshSuggestionChips(
+    currentState: "welcome" | "question" | "feedback" | "summary",
+    topic: InterviewGenre | null
+  ) {
+    const response = await callMcpTool("get_suggestion_chips", {
+      topic,
+      currentState,
+    });
 
-  function handleGenreSelect(selectedGenre: InterviewGenre) {
-    const genreInfo = genres.find((g) => g.id === selectedGenre);
-    const { questionResult, chips: newChips } = startInterview(selectedGenre);
-
-    setGenre(selectedGenre);
-    setCurrentQuestion(questionResult.question);
-    setUsedQuestionIds([questionResult.question.id]);
-    setFeedback(null);
-    setImprovedAnswer(null);
-    setUserAnswer("");
-    setPhase("question");
-    setChips(newChips);
-    setAnswerError("");
-
-    addBotMessage(
-      `${genreInfo?.icon ?? "🎯"} Starting your **${genreInfo?.label ?? selectedGenre}** interview.\n\nTone: ${genreInfo?.tone ?? "Professional"}`
-    );
-    addBotMessage(
-      `📋 Here is your question:\n\n${questionResult.question.text}${
-        questionResult.tip ? `\n\n💡 Tip: ${questionResult.tip}` : ""
-      }`
-    );
+    if (response.ok) {
+      setChips(response.data.chips);
+    }
   }
 
-  // ─── Submit Answer ──────────────────────────────────────────────────────────
+  async function requestNextQuestion(
+    topic: InterviewGenre,
+    usedIdsOverride?: string[],
+    difficulty?: "easy" | "medium" | "hard"
+  ) {
+    const response = await callMcpTool("generate_question", {
+      topic,
+      difficulty,
+      usedIds: usedIdsOverride ?? usedQuestionIds,
+    });
 
-  function handleSubmitAnswer() {
+    if (!response.ok) {
+      addBotMessage("I could not generate a question right now. Please try again.");
+      return;
+    }
+
+    setCurrentQuestion(response.data.question);
+    setUsedQuestionIds((prev) => [...prev, response.data.question.id]);
+    setDeepFeedback(null);
+    setShowDeepFeedback(false);
+
+    addBotMessage(
+      `Here is your question:\n\n${response.data.question.text}${
+        response.data.tip ? `\n\nTip: ${response.data.tip}` : ""
+      }`
+    );
+
+    setPhase("question");
+    await refreshSuggestionChips("question", topic);
+  }
+
+  async function startGenreFlow(genreToStart: InterviewGenre) {
+    if (isBusy) return;
+
+    setIsBusy(true);
+    const label = genres.find((genre) => genre.id === genreToStart)?.label ?? genreToStart;
+
+    addUserMessage(`I want to practice ${label}.`);
+
+    const switchResponse = await callMcpTool("switch_topic", {
+      nextTopic: genreToStart,
+    });
+
+    if (!switchResponse.ok) {
+      addBotMessage("I could not switch topics right now. Please try again.");
+      setIsBusy(false);
+      return;
+    }
+
+    setSelectedGenre(genreToStart);
+    setCurrentQuestion(null);
+    setUsedQuestionIds([]);
+    setPhase("question");
+    setEvaluationResult(null);
+    setImprovedAnswer(null);
+    setUserAnswer("");
+    setLastUserAnswer("");
+    setShowStarTip(false);
+    setAnswerError("");
+    setSummaryData(null);
+    setDeepFeedback(null);
+    setAnalysisHistory([]);
+    setShowDeepFeedback(false);
+
+    addBotMessage(switchResponse.data.confirmation);
+    addBotMessage(switchResponse.data.starterMessage);
+
+    if (switchResponse.data.triggerFirstQuestion) {
+      await requestNextQuestion(genreToStart, []);
+    }
+
+    setIsBusy(false);
+  }
+
+  async function handleSubmitAnswer() {
     if (!userAnswer.trim()) {
       setAnswerError("Please type your answer before submitting.");
       return;
     }
-    if (!currentQuestion || !genre) return;
+
+    if (!currentQuestion || !selectedGenre) return;
 
     setAnswerError("");
     addUserMessage(userAnswer);
+    setLastUserAnswer(userAnswer);
 
-    const { evaluation, improvedAnswer: improved, chips: newChips } = submitAnswer(
-      currentQuestion.text,
-      userAnswer,
-      genre
-    );
+    const evaluateResponse = await callMcpTool("run_feedback_pipeline", {
+      topic: selectedGenre,
+      question: currentQuestion.text,
+      answer: userAnswer,
+      genre: selectedGenre,
+      difficulty: currentQuestion.difficulty,
+      previousAnswerHistory: history.map((entry) => entry.userAnswer),
+      previousAnalysisResults: analysisHistory,
+    });
+
+    if (!evaluateResponse.ok) {
+      addBotMessage("I could not evaluate your answer right now. Please try again.");
+      return;
+    }
 
     const newEntry: HistoryEntry = {
       question: currentQuestion,
       userAnswer,
-      evaluation,
-      improvedAnswer: improved,
+      evaluation: {
+        score: evaluateResponse.data.quickFeedback.score,
+        feedback: evaluateResponse.data.quickFeedback.summary,
+        strengths: evaluateResponse.data.quickFeedback.strengths,
+        improvements: evaluateResponse.data.quickFeedback.topImprovements,
+        rubricNotes: "Adaptive feedback generated from multi-tool analysis.",
+      },
+      improvedAnswer: "",
     };
 
     setHistory((prev) => [...prev, newEntry]);
-    setFeedback(evaluation);
-    setImprovedAnswer(improved);
+    setAnalysisHistory((prev) => [...prev, evaluateResponse.data.deepFeedback.analysis]);
+    setEvaluationResult(newEntry.evaluation);
+    setDeepFeedback(evaluateResponse.data.deepFeedback);
+    setImprovedAnswer(null);
+    setShowDeepFeedback(false);
     setPhase("feedback");
-    setChips(newChips);
     setUserAnswer("");
 
+    await refreshSuggestionChips("feedback", selectedGenre);
+
     addBotMessage(
-      `Thanks for your answer! Let me evaluate it...\n\nYour score: ${evaluation.score}/10\n\n${evaluation.feedback}`
+      `Score: ${evaluateResponse.data.quickFeedback.score}/10\n\n${evaluateResponse.data.quickFeedback.summary}`
     );
   }
 
-  // ─── Chip Actions ───────────────────────────────────────────────────────────
+  async function handleRewriteAnswer() {
+    if (!currentQuestion || !selectedGenre || !lastUserAnswer) {
+      addBotMessage("Answer a question first, then I can rewrite your response.");
+      return;
+    }
 
-  function handleChipClick(chip: SuggestionChip) {
+    const response = await callMcpTool("improve_answer", {
+      topic: selectedGenre,
+      question: currentQuestion.text,
+      answer: lastUserAnswer,
+    });
+
+    if (!response.ok) {
+      addBotMessage("I could not rewrite your answer right now. Please try again.");
+      return;
+    }
+
+    setImprovedAnswer(response.data.improvedAnswer);
+
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      const latest = updated[updated.length - 1];
+      updated[updated.length - 1] = {
+        ...latest,
+        improvedAnswer: response.data.improvedAnswer,
+      };
+      return updated;
+    });
+
+    addBotMessage("I rewrote your answer with stronger structure and clarity.");
+  }
+
+  async function handleDetailedCritique() {
+    if (!deepFeedback) {
+      addBotMessage("Submit an answer first, then I can show deep analysis.");
+      return;
+    }
+    setShowDeepFeedback(true);
+    setPhase("feedback");
+    addBotMessage("Deep analysis is ready below with dissection, coaching plan, and a targeted follow-up question.");
+  }
+
+  async function handleUseCustomQuestion() {
+    if (!selectedGenre) {
+      addBotMessage("Choose a topic first, then you can practice your own question.");
+      return;
+    }
+
+    if (!customQuestionInput.trim()) {
+      addBotMessage("Type your custom interview question first.");
+      return;
+    }
+
+    const response = await callMcpTool("set_custom_question", {
+      topic: selectedGenre,
+      customQuestion: customQuestionInput,
+    });
+
+    if (!response.ok) {
+      addBotMessage("I could not set your custom question right now. Please try again.");
+      return;
+    }
+
+    const customQuestion: Question = {
+      id: `custom-${Date.now()}`,
+      genre: selectedGenre,
+      text: response.data.confirmedQuestion,
+      difficulty: "medium",
+    };
+
+    setCurrentQuestion(customQuestion);
+    setUsedQuestionIds((prev) => [...prev, customQuestion.id]);
+    setEvaluationResult(null);
+    setImprovedAnswer(null);
+    setDeepFeedback(null);
+    setShowDeepFeedback(false);
+    setUserAnswer("");
+    setLastUserAnswer("");
+    setPhase("question");
+
+    addUserMessage(`Use this custom question: ${response.data.confirmedQuestion}`);
+    addBotMessage(response.data.starterMessage);
+    addBotMessage(`Custom question:\n\n${response.data.confirmedQuestion}`);
+
+    setCustomQuestionInput("");
+    await refreshSuggestionChips("question", selectedGenre);
+  }
+
+  async function handleEvaluateAgain() {
+    if (!currentQuestion || !selectedGenre || !lastUserAnswer) {
+      addBotMessage("Submit an answer first, then I can re-evaluate it.");
+      return;
+    }
+
+    const response = await callMcpTool("run_feedback_pipeline", {
+      topic: selectedGenre,
+      question: currentQuestion.text,
+      answer: lastUserAnswer,
+      genre: selectedGenre,
+      difficulty: currentQuestion.difficulty,
+      previousAnswerHistory: history.map((entry) => entry.userAnswer),
+      previousAnalysisResults: analysisHistory,
+    });
+
+    if (!response.ok) {
+      addBotMessage("I could not re-evaluate that answer right now.");
+      return;
+    }
+
+    setEvaluationResult({
+      score: response.data.quickFeedback.score,
+      feedback: response.data.quickFeedback.summary,
+      strengths: response.data.quickFeedback.strengths,
+      improvements: response.data.quickFeedback.topImprovements,
+      rubricNotes: "Adaptive feedback generated from multi-tool analysis.",
+    });
+    setDeepFeedback(response.data.deepFeedback);
+    setAnalysisHistory((prev) => [...prev, response.data.deepFeedback.analysis]);
+    setShowDeepFeedback(false);
+    setPhase("feedback");
+    addBotMessage(
+      `Re-evaluated score: ${response.data.quickFeedback.score}/10\n\n${response.data.quickFeedback.summary}`
+    );
+  }
+
+  async function handleNextQuestion(harder = false) {
+    if (!selectedGenre) {
+      addBotMessage("Choose a topic first so I can generate a question.");
+      return;
+    }
+
+    setEvaluationResult(null);
+    setImprovedAnswer(null);
+    setUserAnswer("");
+    setShowStarTip(false);
+    setAnswerError("");
+
+    await requestNextQuestion(selectedGenre, undefined, harder ? "hard" : undefined);
+  }
+
+  async function handleChipClick(chip: SuggestionChip) {
     switch (chip.action) {
       case "start-genre": {
         const g = chip.payload?.genre as InterviewGenre;
-        if (g) handleGenreSelect(g);
+        if (g) {
+          await startGenreFlow(g);
+        }
         break;
       }
 
       case "next-question":
       case "practice-genre": {
-        if (!genre) return;
-        const { questionResult, chips: newChips } = nextQuestion(genre, usedQuestionIds, false);
-        setCurrentQuestion(questionResult.question);
-        setUsedQuestionIds((prev) => [...prev, questionResult.question.id]);
-        setFeedback(null);
-        setImprovedAnswer(null);
-        setUserAnswer("");
-        setPhase("question");
-        setChips(newChips);
-        setShowStarTip(false);
-        setAnswerError("");
-        addBotMessage(
-          `📋 Next question:\n\n${questionResult.question.text}${
-            questionResult.tip ? `\n\n💡 Tip: ${questionResult.tip}` : ""
-          }`
-        );
+        await handleNextQuestion(false);
         break;
       }
 
       case "harder-question": {
-        if (!genre) return;
-        const { questionResult, chips: newChips } = nextQuestion(genre, usedQuestionIds, true);
-        setCurrentQuestion(questionResult.question);
-        setUsedQuestionIds((prev) => [...prev, questionResult.question.id]);
-        setFeedback(null);
-        setImprovedAnswer(null);
-        setUserAnswer("");
-        setPhase("question");
-        setChips(newChips);
-        setShowStarTip(false);
-        setAnswerError("");
-        addBotMessage(
-          `🔥 Here is a harder question for you:\n\n${questionResult.question.text}${
-            questionResult.tip ? `\n\n💡 Tip: ${questionResult.tip}` : ""
-          }`
-        );
+        await handleNextQuestion(true);
+        break;
+      }
+
+      case "detailed-critique": {
+        await handleDetailedCritique();
         break;
       }
 
       case "change-genre": {
         setPhase("select-genre");
-        setGenre(null);
+        setSelectedGenre(null);
         setCurrentQuestion(null);
-        setFeedback(null);
+        setEvaluationResult(null);
         setImprovedAnswer(null);
         setUserAnswer("");
-        setChips(getLandingChips());
+        setLastUserAnswer("");
         setShowStarTip(false);
         setAnswerError("");
-        addBotMessage("Sure! Choose a different interview type below.");
+        setSummaryData(null);
+        setUsedQuestionIds([]);
+        setDeepFeedback(null);
+        setShowDeepFeedback(false);
+        addBotMessage("Select a topic in the sidebar to start a new practice flow.");
+        await refreshSuggestionChips("welcome", null);
         break;
       }
 
       case "evaluate-again": {
-        if (!currentQuestion || !genre || !userAnswer) {
-          addBotMessage(
-            "Type a new answer in the box below, then submit it to get fresh feedback!"
-          );
-          setPhase("question");
-          setFeedback(null);
-          setImprovedAnswer(null);
-        }
+        await handleEvaluateAgain();
         break;
       }
 
       case "rewrite-answer": {
-        if (improvedAnswer) {
-          addBotMessage(`✨ Here is a stronger version of your answer:\n\n${improvedAnswer}`);
-        }
+        await handleRewriteAnswer();
         break;
       }
 
@@ -243,17 +438,23 @@ export default function ChatWindow() {
       }
 
       case "end-session": {
-        const summary = endSession(history);
-        setSummaryData({
-          totalQuestions: summary.totalQuestions,
-          averageScore: summary.averageScore,
-        });
+        const totalQuestions = history.length;
+        const averageScore =
+          totalQuestions === 0
+            ? 0
+            : Math.round(
+                history.reduce((sum, item) => sum + item.evaluation.score, 0) /
+                  totalQuestions
+              );
+
+        setSummaryData({ totalQuestions, averageScore });
         setPhase("summary");
-        setChips(summary.chips);
+        await refreshSuggestionChips("summary", selectedGenre);
+
         addBotMessage(
-          `Great session! You answered ${summary.totalQuestions} question${
-            summary.totalQuestions !== 1 ? "s" : ""
-          } with an average score of ${summary.averageScore}/10.`
+          `Session complete. You answered ${totalQuestions} question${
+            totalQuestions !== 1 ? "s" : ""
+          } with an average score of ${averageScore}/10.`
         );
         break;
       }
@@ -263,136 +464,161 @@ export default function ChatWindow() {
     }
   }
 
-  // ─── Restart ────────────────────────────────────────────────────────────────
+  function handleHowItWorks() {
+    addBotMessage(
+      "How it works:\n1) Pick a topic.\n2) Answer the question.\n3) Improve with feedback."
+    );
+  }
 
   function handleRestart() {
     setPhase("select-genre");
-    setGenre(null);
+    setSelectedGenre(null);
     setCurrentQuestion(null);
-    setFeedback(null);
+    setEvaluationResult(null);
     setImprovedAnswer(null);
     setUserAnswer("");
+    setLastUserAnswer("");
     setHistory([]);
     setUsedQuestionIds([]);
     setSummaryData(null);
-    setChips(getLandingChips());
+    setChips([]);
+    setDeepFeedback(null);
+    setAnalysisHistory([]);
+    setShowDeepFeedback(false);
     setShowStarTip(false);
     setAnswerError("");
     setMessages([
       {
         role: "bot",
-        content:
-          "👋 Welcome back! Choose an interview type below to start a new session.",
+        content: "Welcome back. Choose a topic in the sidebar to begin a new session.",
       },
     ]);
+    void refreshSuggestionChips("welcome", null);
   }
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex flex-col h-full">
-      {/* ── Chat Messages ──────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} role={msg.role} content={msg.content} />
-        ))}
+    <div className="app-shell bg-(--bg-main)">
+      <main className="h-full p-3 sm:p-4">
+        <div className="mx-auto max-w-7xl h-full min-h-0 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-3 sm:gap-4">
+          <TopicSidebar
+            selectedTopic={selectedGenre}
+            onSelectTopic={(topic) => void startGenreFlow(topic)}
+            onStartNewSession={handleRestart}
+          />
 
-        {/* STAR tip (shown inline) */}
-        {showStarTip && <StarTipBox onDismiss={() => setShowStarTip(false)} />}
+          <section className="h-full min-h-0 rounded-2xl border border-(--border-soft) bg-(--bg-chat) flex flex-col overflow-hidden">
+            <header className="shrink-0 border-b border-(--border-soft) px-4 sm:px-6 py-4 bg-(--bg-chat) flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold text-(--text-primary)">
+                  {selectedGenre
+                    ? `${genres.find((topic) => topic.id === selectedGenre)?.label ?? selectedGenre} Practice`
+                    : "Interview Practice Workspace"}
+                </h2>
+                <p className="text-xs text-(--text-secondary) mt-0.5">
+                  {selectedGenre
+                    ? "You are in focused practice mode."
+                    : "Select a topic from the sidebar to begin."}
+                </p>
+              </div>
+              {isBusy && (
+                <span className="text-xs font-medium text-(--brand-primary)">Working...</span>
+              )}
+            </header>
 
-        {/* Genre Selector (shown in phase: select-genre) */}
-        {phase === "select-genre" && (
-          <div className="mt-4">
-            <GenreSelector onSelect={handleGenreSelect} />
-          </div>
-        )}
+            {selectedGenre && currentQuestion && (
+              <div className="shrink-0 border-b border-(--border-soft) bg-(--bg-main) px-4 sm:px-6 py-3">
+                <p className="text-xs uppercase tracking-wide text-(--text-secondary)">Current Question</p>
+                <p className="text-sm sm:text-base font-medium text-(--text-primary) mt-1 line-clamp-2">
+                  {currentQuestion.text}
+                </p>
+              </div>
+            )}
 
-        {/* Feedback Card (shown in phase: feedback) */}
-        {phase === "feedback" && feedback && (
-          <div className="mt-2">
-            <FeedbackCard evaluation={feedback} />
-          </div>
-        )}
-
-        {/* Improved Answer (shown in phase: feedback) */}
-        {phase === "feedback" && improvedAnswer && (
-          <ImprovedAnswerCard improvedAnswer={improvedAnswer} />
-        )}
-
-        {/* Session Summary (shown in phase: summary) */}
-        {phase === "summary" && summaryData && (
-          <div className="mt-4">
-            <SessionSummary
-              history={history}
-              totalQuestions={summaryData.totalQuestions}
-              averageScore={summaryData.averageScore}
-              onRestart={handleRestart}
-            />
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* ── Suggestion Chips ───────────────────────────────── */}
-      {chips.length > 0 && phase !== "select-genre" && phase !== "summary" && (
-        <div className="px-4 pb-2">
-          <SuggestionChips chips={chips} onChipClick={handleChipClick} />
-        </div>
-      )}
-
-      {/* ── Summary Phase Chips ────────────────────────────── */}
-      {phase === "summary" && chips.length > 0 && (
-        <div className="px-4 pb-2">
-          <SuggestionChips chips={chips} onChipClick={handleChipClick} />
-        </div>
-      )}
-
-      {/* ── Answer Input (visible only during question/feedback phases) ── */}
-      {(phase === "question" || (phase === "feedback" && currentQuestion)) && (
-        <div className="border-t border-gray-200 bg-white px-4 py-3">
-          {/* Current question reminder */}
-          {currentQuestion && (
-            <p className="text-xs text-gray-500 mb-2 truncate">
-              <span className="font-medium">Q:</span> {currentQuestion.text}
-            </p>
-          )}
-
-          {/* Error */}
-          {answerError && (
-            <p className="text-xs text-red-500 mb-1">{answerError}</p>
-          )}
-
-          <div className="flex gap-2 items-end">
-            <textarea
-              value={userAnswer}
-              onChange={(e) => {
-                setUserAnswer(e.target.value);
-                if (answerError) setAnswerError("");
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                  handleSubmitAnswer();
-                }
-              }}
-              placeholder="Type your answer here… (Ctrl+Enter to submit)"
-              rows={3}
-              className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent"
-            />
-            <button
-              onClick={handleSubmitAnswer}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-colors self-end"
+            <div
+              ref={messageScrollRef}
+              className="chat-scroll flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 bg-linear-to-b from-(--bg-main) to-(--bg-chat)"
             >
-              Submit
-            </button>
-          </div>
+              {!selectedGenre && <WelcomeState onOpenTopicGuide={handleHowItWorks} />}
 
-          {/* Landing chips shown below input in question phase */}
-          {phase === "question" && chips.length > 0 && (
-            <SuggestionChips chips={chips} onChipClick={handleChipClick} />
-          )}
+              {messages.map((msg, i) => (
+                <MessageBubble key={i} role={msg.role} content={msg.content} />
+              ))}
+
+              {showStarTip && <StarTipBox onDismiss={() => setShowStarTip(false)} />}
+
+              {phase === "feedback" && evaluationResult && (
+                <div className="mt-2">
+                  <FeedbackCard evaluation={evaluationResult} />
+                </div>
+              )}
+
+              {phase === "feedback" && improvedAnswer && (
+                <div className="mt-2">
+                  <ImprovedAnswerCard improvedAnswer={improvedAnswer} />
+                </div>
+              )}
+
+              {phase === "feedback" && deepFeedback && showDeepFeedback && (
+                <DeepFeedbackPanel payload={deepFeedback} />
+              )}
+
+              {phase === "summary" && summaryData && (
+                <div className="mt-2">
+                  <SessionSummary
+                    history={history}
+                    totalQuestions={summaryData.totalQuestions}
+                    averageScore={summaryData.averageScore}
+                    onRestart={handleRestart}
+                  />
+                </div>
+              )}
+
+            </div>
+
+            {selectedGenre && phase !== "summary" && (
+              <div className="shrink-0 border-t border-(--border-soft) bg-(--bg-chat) px-4 sm:px-6 py-3">
+                <CustomQuestionBox
+                  value={customQuestionInput}
+                  onChange={setCustomQuestionInput}
+                  onUseQuestion={() => void handleUseCustomQuestion()}
+                  disabled={isBusy}
+                />
+
+                {answerError && <p className="text-xs text-red-500 mb-1">{answerError}</p>}
+
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={userAnswer}
+                    onChange={(e) => {
+                      setUserAnswer(e.target.value);
+                      if (answerError) setAnswerError("");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                        void handleSubmitAnswer();
+                      }
+                    }}
+                    placeholder="Type your answer here... (Ctrl+Enter to send)"
+                    rows={3}
+                    className="flex-1 resize-none rounded-xl border border-(--border-soft) bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-(--accent-violet) focus:border-transparent"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleSubmitAnswer()}
+                    className="btn-gradient rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.99]"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="shrink-0 border-t border-(--border-soft) bg-(--bg-chat) px-4 sm:px-6 py-2">
+              <SuggestionChips chips={chips} onChipClick={(chip) => void handleChipClick(chip)} />
+            </div>
+          </section>
         </div>
-      )}
+      </main>
     </div>
   );
 }

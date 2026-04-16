@@ -13,7 +13,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full bg-gray-50 text-gray-900 flex flex-col" style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <body
+        className="h-full overflow-hidden bg-(--bg-main) text-(--text-primary)"
+        style={{ fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}
+      >
         {children}
       </body>
     </html>

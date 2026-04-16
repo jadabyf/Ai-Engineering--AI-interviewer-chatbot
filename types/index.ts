@@ -65,6 +65,7 @@ export type ChipAction =
   | "harder-question"
   | "change-genre"
   | "evaluate-again"
+  | "detailed-critique"
   | "rewrite-answer"
   | "end-session"
   | "star-tip"

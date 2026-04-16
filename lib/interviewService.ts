@@ -56,6 +56,42 @@ export function submitAnswer(
   return { evaluation, improvedAnswer, chips };
 }
 
+// ─── Evaluate Existing Answer ─────────────────────────────────────────────────
+
+/**
+ * Re-runs evaluation for an existing answer without generating a new question.
+ */
+export function evaluateExistingAnswer(
+  question: string,
+  answer: string,
+  genre: InterviewGenre
+): {
+  evaluation: EvaluationResult;
+  chips: SuggestionChip[];
+} {
+  const evaluation = evaluateAnswerTool(question, answer, genre);
+  const chips = getSuggestionChipsTool({ phase: "feedback", genre });
+  return { evaluation, chips };
+}
+
+// ─── Improve Existing Answer ──────────────────────────────────────────────────
+
+/**
+ * Produces an improved version for an existing answer.
+ */
+export function improveExistingAnswer(
+  question: string,
+  answer: string,
+  genre: InterviewGenre
+): {
+  improvedAnswer: string;
+  chips: SuggestionChip[];
+} {
+  const { improvedAnswer } = improveAnswerTool(question, answer, genre);
+  const chips = getSuggestionChipsTool({ phase: "feedback", genre });
+  return { improvedAnswer, chips };
+}
+
 // ─── Next Question ─────────────────────────────────────────────────────────────
 
 /**

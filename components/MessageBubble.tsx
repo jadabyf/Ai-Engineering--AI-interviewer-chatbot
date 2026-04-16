@@ -15,17 +15,17 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
     <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
       {/* Bot avatar */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold mr-2 flex-shrink-0 mt-1">
+        <div className="w-8 h-8 rounded-full bg-(--brand-primary) flex items-center justify-center text-white text-sm font-bold mr-2 shrink-0 mt-1">
           AI
         </div>
       )}
 
       <div
         className={`
-          max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap
+          max-w-[80%] px-4 py-3 rounded-xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm
           ${isUser
-            ? "bg-indigo-600 text-white rounded-br-sm"
-            : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm"
+            ? "bg-linear-to-br from-(--brand-primary) to-(--brand-soft-purple) text-white rounded-br-sm"
+            : "bg-(--bg-chat) border border-(--border-soft) text-(--text-primary) rounded-bl-sm"
           }
         `}
       >
@@ -34,7 +34,7 @@ export default function MessageBubble({ role, content }: MessageBubbleProps) {
 
       {/* User avatar */}
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-gray-600 text-xs font-bold ml-2 flex-shrink-0 mt-1">
+        <div className="w-8 h-8 rounded-full bg-(--accent-violet)/25 border border-(--accent-violet)/50 flex items-center justify-center text-(--text-secondary) text-xs font-bold ml-2 shrink-0 mt-1">
           You
         </div>
       )}
