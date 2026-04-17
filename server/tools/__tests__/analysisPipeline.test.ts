@@ -32,6 +32,17 @@ describe("analyzeAnswerHandler", () => {
     expect(result.score).toBeGreaterThanOrEqual(6);
     expect(result.detectedIssues).not.toContain("too-short");
   });
+
+  it("flags collaboration risk when answer rejects teamwork", () => {
+    const result = analyzeAnswerHandler({
+      topic: "teamwork",
+      genre: "teamwork",
+      question: "How do you work with team members during conflict?",
+      answer: "I don't like working on a team. I prefer to work alone.",
+    });
+
+    expect(result.detectedIssues).toContain("collaboration-risk");
+  });
 });
 
 describe("detectInappropriateAnswerHandler", () => {
@@ -93,5 +104,7 @@ describe("runFeedbackPipelineHandler", () => {
     expect(result.deepFeedback.analysis.detectedStrengths.length).toBeGreaterThan(0);
     expect(result.deepFeedback.followupQuestion.recommendedQuestion.length).toBeGreaterThan(0);
     expect(result.deepFeedback.dimensions.relevance).toBeGreaterThan(0);
+    expect(result.quickFeedback.topImprovements[0]).not.toBe("low-relevance");
+    expect(result.deepFeedback.coaching.suggestedResponses.length).toBeGreaterThan(0);
   });
 });

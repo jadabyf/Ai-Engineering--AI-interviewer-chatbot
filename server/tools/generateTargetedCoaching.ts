@@ -36,7 +36,38 @@ const ISSUE_FIX_LIBRARY: Record<
     fix: "Replace emotional wording with objective language.",
     example: "I disagreed with the approach, so I proposed a safer alternative with evidence and aligned the team.",
   },
+  "collaboration-risk": {
+    why: "Statements that reject teamwork are high risk in interview evaluation.",
+    fix: "Acknowledge team value, then explain how you contribute effectively within a team.",
+    example: "I do my best work with clear ownership in collaborative teams, so I align on roles early and communicate proactively.",
+  },
 };
+
+function buildSuggestedResponses(question: string, topic: string, topProblems: string[]): string[] {
+  const base = [
+    `Direct answer: In this situation, I focused on ${topic === "technical" ? "a structured technical approach" : "clear ownership and collaboration"}.`,
+    "Action + reasoning: I chose this approach because it reduced risk and improved team alignment.",
+    "Result: This led to a measurable improvement and a better outcome for stakeholders.",
+  ];
+
+  if (topProblems.includes("collaboration-risk")) {
+    return [
+      "I work best in collaborative teams with clear ownership. In one project, I aligned responsibilities early, supported a teammate through a blocker, and we delivered on time.",
+      "I value teamwork because strong communication improves outcomes. I proactively share updates, ask for feedback, and help resolve conflicts quickly.",
+      "When team dynamics are difficult, I stay professional, clarify goals, and focus on solutions that move the group forward.",
+    ];
+  }
+
+  if (topProblems.includes("too-short") || topProblems.includes("weak-structure")) {
+    return [
+      `To answer "${question}": first, I set the context briefly. Then I explain the exact action I took and why. Finally, I close with the measurable result.`,
+      "In that case, I took ownership of the key task, coordinated with stakeholders, and delivered a concrete improvement.",
+      "My approach was to define the goal, execute a clear plan, and validate success with measurable outcomes.",
+    ];
+  }
+
+  return base;
+}
 
 export function generateTargetedCoachingHandler(
   input: GenerateTargetedCoachingInput
@@ -69,10 +100,17 @@ export function generateTargetedCoachingHandler(
     "Close with one measurable result or impact statement.",
   ];
 
+  const suggestedResponses = buildSuggestedResponses(
+    input.question,
+    input.topic,
+    topProblemsToFix
+  );
+
   return {
     topProblemsToFix,
     coachingPlan,
     sampleStrongerAnswer,
+    suggestedResponses,
     nextAttemptAdvice,
   };
 }

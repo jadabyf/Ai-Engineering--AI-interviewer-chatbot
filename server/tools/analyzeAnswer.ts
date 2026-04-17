@@ -20,6 +20,10 @@ export function analyzeAnswerHandler(input: AnalyzeAnswerInput): AnalyzeAnswerRe
   const { topic, question, answer } = input;
   const wc = wordCount(answer);
   const sentences = splitSentences(answer);
+  const collaborationRisk =
+    /\b(i don'?t like working on a team|i hate teamwork|prefer to work alone|don'?t work well with others|teamwork is not for me)\b/i.test(
+      answer
+    );
 
   const relevanceToQuestion = relevanceScore(question, answer);
   const completeness = Math.min(10, wc >= 90 ? 10 : wc >= 60 ? 8 : wc >= 35 ? 6 : wc >= 20 ? 4 : 2);
@@ -48,6 +52,7 @@ export function analyzeAnswerHandler(input: AnalyzeAnswerInput): AnalyzeAnswerRe
   if (!hasResultLanguage(answer)) detectedIssues.push("missing-results");
   if (!hasReasoning(answer) && topic === "technical") detectedIssues.push("weak-reasoning");
   if (professionalism <= 5) detectedIssues.push("professionalism-risk");
+  if (collaborationRisk) detectedIssues.push("collaboration-risk");
   if (structureQuality <= 4) detectedIssues.push("weak-structure");
   if (specificityScore <= 4) detectedIssues.push("vague-language");
 
@@ -56,7 +61,7 @@ export function analyzeAnswerHandler(input: AnalyzeAnswerInput): AnalyzeAnswerRe
   if (hasActionLanguage(answer)) detectedStrengths.push("Actions are described instead of generic claims.");
   if (hasResultLanguage(answer)) detectedStrengths.push("Impact language is present.");
   if (hasMetric(answer)) detectedStrengths.push("Uses measurable details.");
-  if (professionalism >= 8) detectedStrengths.push("Professional interview tone.");
+  if (professionalism >= 8 && !collaborationRisk) detectedStrengths.push("Professional interview tone.");
   if (detectedStrengths.length === 0) detectedStrengths.push("Intent to answer the question is present.");
 
   const weighted =
@@ -75,9 +80,10 @@ export function analyzeAnswerHandler(input: AnalyzeAnswerInput): AnalyzeAnswerRe
       "missing-results": 3,
       "low-ownership": 4,
       "weak-reasoning": 5,
-      "weak-structure": 6,
-      "vague-language": 7,
-      "missing-actions": 8,
+      "collaboration-risk": 6,
+      "weak-structure": 7,
+      "vague-language": 8,
+      "missing-actions": 9,
     };
     return (order[a] ?? 99) - (order[b] ?? 99);
   });

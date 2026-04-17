@@ -74,6 +74,7 @@ export default function ChatWindow() {
   const [customQuestionInput, setCustomQuestionInput] = useState("");
 
   const messageScrollRef = useRef<HTMLDivElement>(null);
+  const answerInputRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     const container = messageScrollRef.current;
     if (!container) return;
@@ -90,6 +91,15 @@ export default function ChatWindow() {
 
   function addUserMessage(content: string) {
     setMessages((prev) => [...prev, { role: "user", content }]);
+  }
+
+  function handleUseSuggestedResponse(response: string) {
+    setUserAnswer(response);
+    if (answerError) setAnswerError("");
+    addBotMessage("I added a suggested response to your answer box. Edit it so it sounds like you, then send.");
+    requestAnimationFrame(() => {
+      answerInputRef.current?.focus();
+    });
   }
 
   async function refreshSuggestionChips(
@@ -234,6 +244,11 @@ export default function ChatWindow() {
     addBotMessage(
       `Score: ${evaluateResponse.data.quickFeedback.score}/10\n\n${evaluateResponse.data.quickFeedback.summary}`
     );
+
+    const firstSuggestion = evaluateResponse.data.deepFeedback.coaching.suggestedResponses[0];
+    if (firstSuggestion) {
+      addBotMessage(`Suggested response:\n\n${firstSuggestion}`);
+    }
   }
 
   async function handleRewriteAnswer() {
@@ -360,6 +375,11 @@ export default function ChatWindow() {
     addBotMessage(
       `Re-evaluated score: ${response.data.quickFeedback.score}/10\n\n${response.data.quickFeedback.summary}`
     );
+
+    const firstSuggestion = response.data.deepFeedback.coaching.suggestedResponses[0];
+    if (firstSuggestion) {
+      addBotMessage(`Suggested response:\n\n${firstSuggestion}`);
+    }
   }
 
   async function handleNextQuestion(harder = false) {
@@ -559,7 +579,10 @@ export default function ChatWindow() {
               )}
 
               {phase === "feedback" && deepFeedback && showDeepFeedback && (
-                <DeepFeedbackPanel payload={deepFeedback} />
+                <DeepFeedbackPanel
+                  payload={deepFeedback}
+                  onUseSuggestedResponse={handleUseSuggestedResponse}
+                />
               )}
 
               {phase === "summary" && summaryData && (
@@ -588,6 +611,7 @@ export default function ChatWindow() {
 
                 <div className="flex items-end gap-2">
                   <textarea
+                    ref={answerInputRef}
                     value={userAnswer}
                     onChange={(e) => {
                       setUserAnswer(e.target.value);

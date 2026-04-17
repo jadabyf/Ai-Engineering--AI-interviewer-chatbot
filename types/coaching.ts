@@ -13,6 +13,7 @@ export interface GenerateTargetedCoachingResult {
   topProblemsToFix: string[];
   coachingPlan: CoachingPlanStep[];
   sampleStrongerAnswer: string;
+  suggestedResponses: string[];
   nextAttemptAdvice: string[];
 }
 
